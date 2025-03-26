@@ -18,6 +18,20 @@ close all;
 
 format short;
 
+%% CARACTERIZACAO DO SOLVER:
+
+% 1 - MINIMOS QUADRADOS TRADICIONAL
+% 2 - MINIMOS QUADRADOS RECURSIVOS
+solver = 1;
+
+% 1 - SEM ESQUECIMENTO
+% 2 - COM ESQUECIMENTO
+esquecimento = 1;
+
+% 1 - SEM PONDERACAO
+% 2 - COM PONDERACAO
+ponderacao = 1;
+
 %% VARIAVEIS GLOBAIS:
 
 
@@ -33,11 +47,15 @@ demandaEletrica_table = readtable('DadosDemandaEletricaBrasil.csv', 'VariableNam
 %% ANALISANDO OS DADOS:
 
 
+
 %% VISUALIZANDO A ANALISE DE DADOS:
 
+figure;
+plot(mercadoImobiliario_area{:, 1}, mercadoImobiliario_valor{:, 1})
 
 %% CONSTRUINDO O MODELO DE MINIMOS QUADRADOS:
 
+theta = (X'*X)\X'*Y;
 
 %% CODIGO PRINCIPAL:
 
