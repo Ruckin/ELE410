@@ -42,7 +42,7 @@ ponderacao = 1;
 mercadoImobiliario_table = readtable('DadosMercadoImobiliarioNH.csv', 'VariableNamingRule', 'preserve');
 
 % CARREGANDO DADOS DA DEMANDA DE ENERGIA ELETRICA:
-demandaEletrica_table = readtable('DadosDemandaEletricaBrasil.csv', 'VariableNamingRule', 'preserve');
+% demandaEletrica_table = readtable('DadosDemandaEletricaBrasil.csv', 'VariableNamingRule', 'preserve');
 
 %% ANALISANDO OS DADOS:
 
@@ -50,16 +50,122 @@ demandaEletrica_table = readtable('DadosDemandaEletricaBrasil.csv', 'VariableNam
 
 %% VISUALIZANDO A ANALISE DE DADOS:
 
-figure;
-plot(mercadoImobiliario_area{:, 1}, mercadoImobiliario_valor{:, 1})
+% figure;
+% plot(mercadoImobiliario_area{:, 1}, mercadoImobiliario_valor{:, 1})
 
 %% CONSTRUINDO O MODELO DE MINIMOS QUADRADOS:
 
-theta = (X'*X)\X'*Y;
+% valorImovel = theta_0 + theta_1 * Area + theta_2 * Frente + gamma * theta_3 * IA + theta_4 * (Diatancia_1 + Distancia_2)/2
 
-%% CODIGO PRINCIPAL:
+Area_cell =        mercadoImobiliario_table{4:end, 4};  % AREA TOTAL DO IMOVEL
+Frente_cell =      mercadoImobiliario_table{4:end, 5};  % FRENTE DO IMOVEL
+IA_cell =          mercadoImobiliario_table{4:end, 13}; % INDICE DE APROVEITAMENTO
+Distancia_1_cell = mercadoImobiliario_table{4:end, 11}; % DISTANCIA ATE POLO 1
+Distancia_2_cell = mercadoImobiliario_table{4:end, 12}; % DISTANCIA ATE POLO 2
+PrecoImovel_cell = mercadoImobiliario_table{4:end, 14}; % PRECO TOTAL DO IMOVEL
 
+% CORRIGINDO AS CELULAS PARA DOUBLE:
+Area = NaN(length(Area_cell), 1);
+for i = 1:length(Area_cell)
+    temp = strrep(Area_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    Area(i, 1) = str2double(temp);
+end
+
+Frente = NaN(length(Frente_cell), 1);
+for i = 1:length(Frente_cell)
+    temp = strrep(Frente_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    Frente(i, 1) = str2double(temp);
+end
+
+IA = NaN(length(IA_cell), 1);
+for i = 1:length(IA_cell)
+    temp = strrep(IA_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    IA(i, 1) = str2double(temp);
+end
+
+Distancia_1 = NaN(length(Distancia_1_cell), 1);
+for i = 1:length(Distancia_1_cell)
+    temp = strrep(Distancia_1_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    Distancia_1(i, 1) = str2double(temp);
+end
+
+Distancia_2 = NaN(length(Distancia_2_cell), 1);
+for i = 1:length(Distancia_2_cell)
+    temp = strrep(Distancia_2_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    Distancia_2(i, 1) = str2double(temp);
+end
+
+Distancia = (Distancia_1 + Distancia_2)/2;
+
+precoImovel = NaN(length(PrecoImovel_cell), 1);
+for i = 1:length(PrecoImovel_cell)
+    temp = strrep(PrecoImovel_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    precoImovel(i, 1) = str2double(temp);
+end
+
+%% CONTRUINDO AS MATRIZES PARA O MINIMOS QUADRADOS:
+
+gamma = min(Area);
+
+X = [Area.^2 Frente gamma*IA Distancia];
+
+theta = (X'*X)\X'*precoImovel;
 
 %% VERIFICANDO OS RESULTADOS:
 
+theta_0 = min(Area);
+
+e = zeros(size(precoImovel, 1), 1);
+valorImovel_hat = zeros(size(precoImovel, 1), 1);
+
+for i = 1:length(precoImovel)
+
+    valorImovel_hat(i, 1) = .8*theta_0 + theta'*X(i, :)';
+    e(i, 1) = precoImovel(i, 1) - valorImovel_hat(i, 1);
+
+end
+
+%% VERFICANDO:
+
+plot(e, 'r*', 'LineWidth', 1.5);
+
 %% SALVANDO OS RESULTADOS:
+
+% Define the filename
+filename = 'dadoErroEstimacao_precoImovel.mat';
+
+% Define the new variable to save (replace with your actual data variable)
+newData = e;  % Example data to append
+
+% Check if the file exists
+if exist(filename, 'file') == 2
+
+    % File exists, load the existing data from the file
+    load(filename, 'allData');  % Load 'allData' if it exists (or create new if not)
+    
+    % If 'allData' doesn't exist (on the first run), initialize it
+    if ~exist('allData', 'var')
+        allData = [];
+    end
+    
+    % Append the new data to the existing data
+    allData = [allData; newData];  % Appending newData row-wise
+    
+    % Save the updated 'allData' variable back into the file
+    save(filename, 'allData');
+    disp('Data appended to the existing file.');
+
+else
+
+    % File doesn't exist, create it and save the new data as 'allData'
+    allData = newData;
+    save(filename, 'allData');
+    disp('New file created and data saved.');
+
+end
