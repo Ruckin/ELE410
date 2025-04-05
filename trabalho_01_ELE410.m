@@ -44,21 +44,13 @@ mercadoImobiliario_table = readtable('DadosMercadoImobiliarioNH.csv', 'VariableN
 % CARREGANDO DADOS DA DEMANDA DE ENERGIA ELETRICA:
 % demandaEletrica_table = readtable('DadosDemandaEletricaBrasil.csv', 'VariableNamingRule', 'preserve');
 
-%% ANALISANDO OS DADOS:
-
-
-
-%% VISUALIZANDO A ANALISE DE DADOS:
-
-% figure;
-% plot(mercadoImobiliario_area{:, 1}, mercadoImobiliario_valor{:, 1})
-
 %% CONSTRUINDO O MODELO DE MINIMOS QUADRADOS:
 
 % valorImovel = theta_0 + theta_1 * Area + theta_2 * Frente + gamma * theta_3 * IA + theta_4 * (Diatancia_1 + Distancia_2)/2
 
 Area_cell =        mercadoImobiliario_table{4:end, 4};  % AREA TOTAL DO IMOVEL
 Frente_cell =      mercadoImobiliario_table{4:end, 5};  % FRENTE DO IMOVEL
+Renda_cell =       mercadoImobiliario_table{4:end, 10}; % FRENTE DO IMOVEL
 IA_cell =          mercadoImobiliario_table{4:end, 13}; % INDICE DE APROVEITAMENTO
 Distancia_1_cell = mercadoImobiliario_table{4:end, 11}; % DISTANCIA ATE POLO 1
 Distancia_2_cell = mercadoImobiliario_table{4:end, 12}; % DISTANCIA ATE POLO 2
@@ -77,6 +69,13 @@ for i = 1:length(Frente_cell)
     temp = strrep(Frente_cell{i, 1}, '.', '');
     temp = strrep(temp, ',', '.');
     Frente(i, 1) = str2double(temp);
+end
+
+Renda = NaN(length(Renda_cell), 1);
+for i = 1:length(Renda_cell)
+    temp = strrep(Renda_cell{i, 1}, '.', '');
+    temp = strrep(temp, ',', '.');
+    Renda(i, 1) = str2double(temp);
 end
 
 IA = NaN(length(IA_cell), 1);
@@ -109,11 +108,44 @@ for i = 1:length(PrecoImovel_cell)
     precoImovel(i, 1) = str2double(temp);
 end
 
+%% ANALISANDO DADOS:
+
+% figure;
+% plot(Area, precoImovel./min(precoImovel), '*');
+% grid on;
+
+% figure;
+% plot(Frente, precoImovel, '*');
+% grid on;
+
+% figure;
+% plot(IA, precoImovel, '*');
+% grid on;
+
+% figure;
+% plot(Distancia, precoImovel, '*');
+% grid on;
+
+% labels = {'Area','Front Length','IA','Mean Distance'};
+% dataParallelPlot = [Area./max(Area) Frente./max(Frente) IA./max(IA) Distancia./max(Distancia)];
+% parallelcoords(dataParallelPlot, 'Labels', labels);
+
+% for i = 1:10:length(precoImovel)
+% 
+%     labels = {'Area','Front Length', 'Renda', 'IA','Mean Distance'};
+%     dataParallelPlot = [Area(i, 1) Frente(i, 1) Renda(i, 1) IA(i, 1) Distancia(i, 1)];
+%     figure;
+%     parallelcoords(dataParallelPlot, 'Labels', labels);
+%     title(['In ', i]);
+%     legend(PrecoImovel_cell{i, 1});
+% 
+% end
+
 %% CONTRUINDO AS MATRIZES PARA O MINIMOS QUADRADOS:
 
 gamma = min(Area);
 
-X = [Area.^2 Frente gamma*IA Distancia];
+X = [Area.^2 Frente Renda.^(2/3) .3*gamma.*IA (.2*gamma + Distancia).^2];
 
 theta = (X'*X)\X'*precoImovel;
 
@@ -122,18 +154,36 @@ theta = (X'*X)\X'*precoImovel;
 theta_0 = min(Area);
 
 e = zeros(size(precoImovel, 1), 1);
+modeloFitado = zeros(size(precoImovel, 1), 1);
 valorImovel_hat = zeros(size(precoImovel, 1), 1);
 
+j = 0;
 for i = 1:length(precoImovel)
 
     valorImovel_hat(i, 1) = .8*theta_0 + theta'*X(i, :)';
     e(i, 1) = precoImovel(i, 1) - valorImovel_hat(i, 1);
 
+    if abs(e(i, 1)) < 500
+
+        modeloFitado(i, 1) = e(i, 1);
+
+    else
+
+        j = j + 1;
+
+    end
 end
 
 %% VERFICANDO:
 
+figure;
 plot(e, 'r*', 'LineWidth', 1.5);
+
+figure;
+plot(modeloFitado, 'ro', 'LineWidth', 1.5);
+
+disp('Valores Descartados:');
+disp(j);
 
 %% SALVANDO OS RESULTADOS:
 
